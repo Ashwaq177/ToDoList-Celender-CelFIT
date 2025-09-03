@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>SAMREF — To-Do & Calendar (SamPlan)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+/* SAMREF palette */
+--navy:#003849; --blue:#067DB9; --green:#39B998; --red:#E53748; --amber:#F2B705;
+
+/* Light (default) */
+--bg:#F5F8FA; --surface:#FFFFFF; --ink:#0E1A20; --muted:#6B7B85; --line:#E2EBF1;
+--surface-soft:#F7FAFC; --chip:#E9FBF5; --chip-border:#CDEFE5; --bar-track:#E9F1F5;
+
+--radius:18px; --shadow:0 10px 26px rgba(0,0,0,.08);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%} /* يمنع تكبير النص التلقائي على iOS */
+body{background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink);padding:28px; overflow-x:hidden}
+.app{max-width:1100px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}
+
+/* Header / Mode */
+.greet{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#F1F6FA 0%, #ECF4F9 100%);padding:16px 20px;border-bottom:1px solid var(--line)}
+.hello{font-weight:800;color:var(--navy)}
+.toast{display:none;align-items:center;gap:10px;background:#fff;border:1px solid #d7ecf3;padding:10px 12px;border-radius:12px;color:#0b3a47;font-weight:700}
+.mode-toggle{display:flex;align-items:center;gap:10px}
+.mode-label{font-weight:800;color:var(--navy);font-size:14px}
+.switch{position:relative;display:inline-block;width:46px;height:24px}
+.switch input{display:none}
+.slider{position:absolute;cursor:pointer;inset:0;background:#cfd8dc;border-radius:24px;transition:.3s}
+.slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:#067DB9}
+input:checked+.slider:before{transform:translateX(22px)}
+
+/* Dates */
+.top{display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:22px;background:var(--surface-soft)}
+.vline{width:1px;background:var(--line);margin:0 18px}
+.date-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 6px 16px rgba(0,0,0,.03)}
+.date-left{text-align:left}.date-right{text-align:right}
+.weekday{font-size:14px;font-weight:700;color:var(--muted)}
+.day{font-size:30px;font-weight:800;color:var(--navy)}
+.month{font-size:16px;font-weight:700;color:var(--navy)}
+
+/* Progress */
+.progress{padding:14px 22px 6px}
+.progress-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.progress-label{font-weight:800;color:var(--navy)}
+.counts{color:var(--muted);font-weight:700}
+.bar-wrap{height:14px;background:var(--bar-track);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),#6FE2C2);transition:width .25s}
+
+/* Controls */
+.controls{display:grid;grid-template-columns:1fr 110px;gap:12px;padding:12px 22px}
+.input{height:48px;border-radius:14px;border:1.5px solid var(--line);padding:0 16px;font-size:16px;background:#fff;color:var(--ink)}
+.input::placeholder{color:var(--muted)}
+.btn{height:44px;min-width:100px;border:none;border-radius:12px;cursor:pointer;font-weight:800;color:#fff;background:var(--blue);box-shadow:0 4px 12px rgba(6,125,185,.25)}
+
+.sub{display:flex;gap:10px;padding:0 22px 8px;flex-wrap:wrap}
+.btn-outline{border:1.5px solid var(--line);background:#fff;color:var(--navy);padding:10px 14px;border-radius:12px;font-weight:800;cursor:pointer}
+.btn-danger{background:var(--red);color:#fff;border:none;padding:10px 14px;border-radius:12px;font-weight:800;cursor:pointer}
+
+/* Tasks */
+h3{margin:8px 22px;color:var(--navy);font-weight:800}
+.list{display:flex;flex-direction:column;gap:12px;padding:0 22px 22px}
+.item{display:grid;grid-template-columns:32px 1fr 32px;align-items:center;gap:12px;background:var(--chip);border:1px solid var(--chip-border);border-radius:18px;padding:10px}
+.check{appearance:none;width:20px;height:20px;border-radius:6px;border:2px solid #B7EAD9;cursor:pointer;background:#fff}
+.check:checked{background:#39B99822;border-color:#39B998}
+.check:checked::after{content:"✓";color:#1E7F63;font-weight:800}
+.text{font-size:16px;font-weight:800;color:var(--navy)}
+.item.done .text{text-decoration:line-through;opacity:.65}
+.del{background:none;border:none;cursor:pointer;font-size:18px;color:var(--red)}
+.empty{text-align:center;color:var(--muted);padding:10px}
+
+/* Calendar */
+.calendar{padding:6px 22px 16px}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin:8px 0;color:var(--navy);font-weight:800;gap:8px;flex-wrap:wrap}
+.months{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.month-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.03)}
+.month-title{display:flex;justify-content:space-between;padding:12px 14px;background:#f3f8fb;border-bottom:1px solid var(--line);color:var(--navy);font-weight:800;border-top-left-radius:16px;border-top-right-radius:16px}
+.grid{padding:10px;display:grid;grid-template-columns:repeat(7, minmax(0,1fr));gap:6px} /* مهم: minmax(0,1fr) */
+.dow{text-align:center;font-size:12px;font-weight:700;color:var(--muted)}
+.cell{
+position:relative;min-height:40px;border-radius:10px;display:flex;align-items:center;justify-content:flex-start;
+background:#fff;border:1px solid #e9eef2;cursor:pointer;color:#2b3d45;font-weight:700;gap:6px;padding-left:6px
+}
+.cell .evicons{font-size:12px;line-height:1;order:1}
+.cell .num{order:2; font-size: clamp(11px, 2.7vw, 14px)}
+.cell.out{opacity:.35}
+
+/* Today glow (light) */
+.cell.today{
+position: relative; z-index: 1;
+background: linear-gradient(180deg, rgba(6,125,185,.10), rgba(6,125,185,.03));
+border-color: var(--blue); color:#000;
+box-shadow:0 0 0 2px rgba(6,125,185,.28) inset,0 0 0 4px rgba(6,125,185,.16),0 4px 14px rgba(6,125,185,.20)
+}
+.cell.today::after{
+content:""; position:absolute; inset:-5px; border-radius:12px;
+box-shadow:0 0 16px 4px rgba(6,125,185,.30); pointer-events:none;
+animation: todayPulse 2.6s ease-in-out infinite
+}
+@keyframes todayPulse{0%,100%{opacity:.35}50%{opacity:.85}}
+
+/* Event variants (light) */
+.cell.deadline{background:#FFE6EA;border-color:#FFC7CF;color:#7a1021}
+.cell.training{background:#E9FBF5;border-color:#CDEFE5;color:#0d5d48}
+.cell.meeting{background:#E7F4FD;border-color:#C9E4FA;color:#0b4971}
+.cell.special{background:#E9EEF0;border-color:#D7E3E8;color:#0f2c36}
+
+.legend{display:flex;gap:18px;align-items:center;margin:8px 2px 0;color:#334;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+.d-red{background:var(--red)} .d-green{background:var(--green)} .d-blue{background:var(--blue)} .d-navy{background:var(--navy)}
+
+/* Picker (event + date-task + priority legend) */
+.picker{
+position:fixed; /* كان absolute — ثبّتناه للشاشة */
+display:none;background:#fff;border:1px solid var(--line);border-radius:10px;
+box-shadow:0 10px 24px rgba(0,0,0,.12);padding:10px;z-index:1000;width:260px;
+max-width: calc(100vw - 16px) /* ما يطلع خارج الشاشة */
+}
+.picker label{font-size:12px;color:var(--muted);font-weight:700;margin:6px 0 6px;display:block}
+.picker select,input,button{width:100%}
+.picker .date-task-row{display:grid;grid-template-columns:1fr 120px;gap:6px;margin-top:6px}
+.picker .priority{height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 8px}
+.picker .date-task-input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px}
+.picker .add-date-task{margin-top:6px;height:36px;border:none;border-radius:8px;font-weight:800;background:#067DB9;color:#fff;cursor:pointer}
+.picker .p-legend{margin-top:6px;font-size:12px;color:#4b5}
+.p-legend b{font-weight:800}
+
+/* Daily panels */
+.daily{padding:0 22px 28px}
+.daily-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.card h4{margin-bottom:8px;color:var(--navy);font-weight:800}
+.dlist{display:flex;flex-direction:column;gap:8px}
+.ditem{display:grid;grid-template-columns:24px 1fr 90px 24px;gap:8px;align-items:center;border-radius:12px;padding:8px 10px;border:1px solid #E2EBF1}
+.ditem .dcheck{width:16px;height:16px}
+.dtext{font-weight:700;color:#223}
+.badge{font-size:12px;font-weight:800;border-radius:999px;padding:4px 8px;text-align:center;justify-self:end}
+.dtrash{background:none;border:none;color:var(--red);font-weight:900;cursor:pointer}
+
+/* highlight per priority (light) */
+.ditem.red{background:rgba(229,55,72,.10); border-color:rgba(229,55,72,.35)}
+.ditem.yellow{background:rgba(242,183,5,.12); border-color:rgba(242,183,5,.35)}
+.ditem.green{background:rgba(57,185,152,.12); border-color:rgba(57,185,152,.35)}
+.badge.red{background:#FFE3E7;color:#7a1021;border:1px solid #FFC7CF}
+.badge.yellow{background:#FFF5D6;color:#6D5600;border:1px solid #F5E6A6}
+.badge.green{background:#E7FAF2;color:#0d5d48;border:1px solid #CDEFE5}
+
+hr.sep{border:none;height:1px;background:var(--line);margin:18px 22px 10px;border-radius:1px}
+
+/* Footer */
+.footer{text-align:center;color:#667;font-size:12px;padding:12px 10px 18px;border-top:1px solid var(--line)}
+
+/* ---------- DARK MODE ---------- */
+body.dark{
+--bg:#001E29; --surface:#0B2230; --ink:#FFFFFF; --muted:#E1E8EC;
+--line:#163846; --surface-soft:#051821; --chip:#0E2B3B; --chip-border:#184455; --bar-track:#0F2F41;
+color-scheme: dark;
+}
+body.dark, body.dark .app, body.dark .hello, body.dark .mode-label,
+body.dark .progress-label, body.dark .counts, body.dark .weekday, body.dark .day,
+body.dark .month, body.dark h3, body.dark .legend, body.dark .text, body.dark .footer,
+body.dark .date-left, body.dark .date-right, body.dark .month-title, body.dark .cell,
+body.dark .grid, body.dark .cal-head, body.dark .dow { color: var(--ink) !important }
+body.dark .greet{background: linear-gradient(180deg,#103243 0%, #0B2230 100%) !important;border-bottom:1px solid #184455 !important}
+body.dark .toast{ background:#0B2230; border-color:#184455; color:#fff }
+body.dark .top{ background:#051821 }
+body.dark .date-card, body.dark .month-card, body.dark .card{ background:#0B2230; border-color:#184455 }
+body.dark .month-title{ background:#0E2B3B !important; border-color:#184455 !important; color:#FFFFFF !important }
+body.dark .vline{ background:#184455 }
+body.dark .input{background:#0E2B3B;border-color:#184455;color:var(--ink)}
+body.dark .input::placeholder{color:#CFE3EC}
+body.dark .btn{background:#067DB9;color:#fff}
+body.dark .btn-outline{border-color:#184455;color:#EAF4F8;background:transparent}
+body.dark .list .item{background:var(--chip);border-color:var(--chip-border)}
+body.dark .cell{background:#0E2B3B;border-color:#1c5063;color:#EAF3F7}
+/* أحداث أوضح */
+body.dark .cell.deadline{background:rgba(229,55,72,.22);border-color:rgba(229,55,72,.55);color:#FFE6EB}
+body.dark .cell.training{background:rgba(57,185,152,.22);border-color:rgba(57,185,152,.55);color:#DFF8F2}
+body.dark .cell.meeting{background:rgba(6,125,185,.22);border-color:rgba(6,125,185,.55);color:#E0F1FB}
+body.dark .cell.special{background:rgba(0,56,73,.40);border-color:rgba(0,56,73,.80);color:#EAF3F7}
+/* Today glow (dark) أخف */
+body.dark .cell.today{
+background: linear-gradient(180deg, rgba(6,125,185,.18), rgba(6,125,185,.08));
+border-color: rgba(111,226,194,.70); color:#fff;
+box-shadow:0 0 0 2px rgba(111,226,194,.38) inset,0 0 0 4px rgba(6,125,185,.22),0 0 18px 2px rgba(6,125,185,.30)
+}
+/* Picker داكن */
+body.dark .picker{background:#0B2230;border-color:#184455;color:#fff}
+body.dark .picker select, body.dark .picker .priority, body.dark .picker .date-task-input{background:#0E2B3B;color:#fff;border:1px solid #2A5A6D}
+/* Daily highlight بالداكن */
+body.dark .ditem.red{background:rgba(229,55,72,.18); border-color:rgba(229,55,72,.55)}
+body.dark .ditem.yellow{background:rgba(242,183,5,.20); border-color:rgba(242,183,5,.55)}
+body.dark .ditem.green{background:rgba(57,185,152,.20); border-color:rgba(57,185,152,.55)}
+body.dark .card .dtext{color:#EAF3F7}
+body.dark .ditem{border-color:#184455}
+
+/* >>> titles of Today's / Tomorrow's in dark mode — clearer <<< */
+body.dark .daily .card h4{
+color:#FFFFFF !important;
+text-shadow:0 1px 2px rgba(0,0,0,.65);
+letter-spacing:.3px;
+font-weight:900;
+}
+
+/* تحسينات استجابة للجوال (iPhone) */
+@media (max-width: 480px){
+body{padding:12px}
+.top{padding:12px}
+.months{grid-template-columns:1fr} /* مهم: عمود واحد على المحمول */
+.calendar{padding:6px 12px 16px}
+.legend{gap:12px}
+.daily{padding:0 12px 24px}
+.daily-wrap{grid-template-columns:1fr} /* بطاقتان تحت بعض */
+.month-title{padding:10px 12px}
+.grid{gap:4px}
+.cell{min-height:36px}
+}
+
+/* Print */
+@page { size: A4; margin: 16mm }
+@media print{
+body{background:#fff;padding:0}
+.greet,.progress,.controls,.sub,.calendar,.picker,.toast{display:none!important}
+.app{border:none;box-shadow:none;max-width:800px;margin:0 auto}
+.top{display:grid!important;background:#F7FAFC;padding:18px}
+h3{margin:10px 18px;color:#000}
+.list{padding:0 18px}
+.item{background:#E9FBF5;border:1px solid #CDEFE5;border-radius:18px;padding:10px 12px;break-inside:avoid}
+.del{display:none!important}
+.text{color:#0d2a34;font-weight:800}
+.footer{display:block}
+}
+
+/* مدخلات ≥16px لمنع تكبير iOS */
+input, select, textarea { font-size:16px; max-width:100% }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<div class="greet">
+<div class="hello" id="hello">Good day</div>
+<div class="mode-toggle">
+<label class="switch">
+<input type="checkbox" id="modeSwitch">
+<span class="slider"></span>
+</label>
+<span class="mode-label" id="modeLabel">Dark Mode</span>
+</div>
+<div class="toast" id="toast">🔔 You have events today.</div>
+</div>
+
+<!-- Dates -->
+<div class="top">
+<div class="date-card date-left">
+<div class="weekday" id="gregWeekday"></div>
+<div class="day"><span id="gregDay"></span></div>
+<div class="month"><span id="gregMonth"></span> <span id="gregYear"></span></div>
+</div>
+<div class="vline" aria-hidden="true"></div>
+<div class="date-card date-right">
+<div class="weekday" id="hijriWeekday"></div>
+<div class="day"><span id="hijriDay"></span></div>
+<div class="month"><span id="hijriMonth"></span> <span id="hijriYear"></span></div>
+</div>
+</div>
+
+<!-- Progress -->
+<div class="progress">
+<div class="progress-row">
+<div class="progress-label">Progress</div>
+<div class="counts" id="counts">0 / 0 tasks done</div>
+</div>
+<div class="bar-wrap"><div class="bar-fill" id="barFill"></div></div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+<input id="taskInput" class="input" type="text" placeholder="Input your task…"/>
+<button id="addBtn" class="btn">Add Task</button>
+</div>
+<div class="sub">
+<button id="resetBtn" class="btn-danger">Reset All</button>
+<button id="printBtn" class="btn-outline">Print List</button>
+<button id="markAllDoneBtn" class="btn-outline">Mark All Done</button>
+</div>
+
+<!-- Tasks -->
+<h3>My Tasks</h3>
+<div id="list" class="list"></div>
+<div id="empty" class="empty">No tasks yet.</div>
+
+<!-- Calendar -->
+<div class="calendar">
+<div class="cal-head">
+<div>Calendar</div>
+<div class="legend">
+<span><i class="dot d-red"></i>Deadline ⏰</span>
+<span><i class="dot d-green"></i>Training 💡</span>
+<span><i class="dot d-blue"></i>Meeting 👥</span>
+<span><i class="dot d-navy"></i>Special day ⭐</span>
+</div>
+</div>
+<div class="months" id="months"></div>
+</div>
+
+<!-- Picker -->
+<div class="picker" id="picker">
+<label for="eventType">Mark this day as</label>
+<select id="eventType">
+<option value="">— None —</option>
+<option value="deadline">Deadline ⏰</option>
+<option value="training">Training 💡</option>
+<option value="meeting">Meeting 👥</option>
+<option value="special">Special day ⭐</option>
+</select>
+
+<label>Add a task for this day</label>
+<div class="date-task-row">
+<input id="dateTaskText" class="date-task-input" type="text" placeholder="Task title…">
+<select id="dateTaskPriority" class="priority" title="Priority">
+<option value="red">Very important (Red)</option>
+<option value="yellow">Important (Yellow)</option>
+<option value="green" selected>Optional (Green)</option>
+</select>
+</div>
+<button id="addDateTask" class="add-date-task">Add</button>
+<div class="p-legend">
+<b>Priority:</b> Red = Very important, Yellow = Important, Green = Optional
+</div>
+</div>
+
+<hr class="sep">
+
+<!-- Daily panels -->
+<div class="daily">
+<div class="daily-wrap">
+<div class="card">
+<h4>Today’s Tasks</h4>
+<div id="todayList" class="dlist"></div>
+</div>
+<div class="card">
+<h4>Tomorrow’s Tasks</h4>
+<div id="tomorrowList" class="dlist"></div>
+</div>
+</div>
+</div>
+
+<div class="footer">© 2025 Ashwaq Aljohani. All Rights Reserved.</div>
+</div>
+
+<script>
+(()=> {
+const $ = s => document.querySelector(s);
+
+/* Dark mode */
+const modeSwitch = $('#modeSwitch');
+const savedMode = localStorage.getItem('samref-mode');
+if(savedMode==='dark'){ document.body.classList.add('dark'); modeSwitch.checked=true; }
+modeSwitch.addEventListener('change',()=>{
+const dark=modeSwitch.checked;
+document.body.classList.toggle('dark',dark);
+localStorage.setItem('samref-mode',dark?'dark':'light');
+});
+
+/* Greeting */
+function setGreeting(){
+const h=new Date().getHours();
+$('#hello').textContent = h<12?'Good morning':(h<18?'Good afternoon':'Good evening');
+}
+
+/* Dates */
+function renderDates(){
+const now=new Date();
+$('#gregWeekday').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
+$('#gregDay').textContent=new Intl.DateTimeFormat('en-GB',{day:'numeric'}).format(now);
+$('#gregMonth').textContent=new Intl.DateTimeFormat('en-GB',{month:'long'}).format(now);
+$('#gregYear').textContent=new Intl.DateTimeFormat('en-GB',{year:'numeric'}).format(now);
+
+$('#hijriWeekday').textContent=new Intl.DateTimeFormat('en-u-ca-islamic',{weekday:'long'}).format(now);
+$('#hijriDay').textContent=new Intl.DateTimeFormat('en-u-ca-islamic',{day:'numeric'}).format(now);
+$('#hijriMonth').textContent=new Intl.DateTimeFormat('en-u-ca-islamic',{month:'long'}).format(now);
+$('#hijriYear').textContent=new Intl.DateTimeFormat('en-u-ca-islamic',{year:'numeric'}).format(now)+' AH';
+}
+function scheduleMidnightUpdate(){
+const now=new Date();
+const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,2);
+setTimeout(()=>{ setGreeting(); renderDates(); renderCalendars(); renderDailyPanels(); scheduleMidnightUpdate(); }, next-now);
+}
+
+/* To-Do (global) */
+const LS_TASKS='todo-samref-v3';
+let tasks=JSON.parse(localStorage.getItem(LS_TASKS)||'[]');
+const listEl=$('#list'), emptyEl=$('#empty'), inputEl=$('#taskInput'), countsEl=$('#counts'), barFill=$('#barFill');
+
+const uid=()=>Math.random().toString(36).slice(2,9);
+const saveTasks=()=>localStorage.setItem(LS_TASKS,JSON.stringify(tasks));
+
+function renderTasks(){
+listEl.innerHTML='';
+if(!tasks.length){ emptyEl.style.display='block'; }
+else{
+emptyEl.style.display='none';
+tasks.forEach(t=>{
+const item=document.createElement('div'); item.className='item'+(t.done?' done':'');
+const check=document.createElement('input'); check.type='checkbox'; check.className='check'; check.checked=!!t.done;
+check.addEventListener('change',()=>toggleDone(t.id));
+const text=document.createElement('div'); text.className='text'; text.textContent=t.text;
+const del=document.createElement('button'); del.className='del'; del.textContent='✕';
+del.addEventListener('click',()=>removeTask(t.id));
+item.append(check,text,del); listEl.appendChild(item);
+});
+}
+const total=tasks.length, done=tasks.filter(t=>t.done).length;
+countsEl.textContent=`${done} / ${total} tasks done`;
+barFill.style.width= total? (done/total)*100+'%':'0%';
+}
+function addTask(){ const v=(inputEl.value||'').trim(); if(!v) return; tasks.unshift({id:uid(),text:v,done:false}); inputEl.value=''; saveTasks(); renderTasks(); }
+function toggleDone(id){ tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t); saveTasks(); renderTasks(); }
+function removeTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); renderTasks(); }
+function resetAll(){ if(tasks.length && confirm('Delete all tasks?')){ tasks=[]; saveTasks(); renderTasks(); } }
+$('#addBtn').addEventListener('click', addTask);
+inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+$('#resetBtn').addEventListener('click', resetAll);
+$('#markAllDoneBtn').addEventListener('click', ()=>{ tasks=tasks.map(t=>({...t,done:true})); saveTasks(); renderTasks(); });
+$('#printBtn').addEventListener('click', ()=>window.print());
+
+/* Calendar + events */
+const LS_EVENTS='samref-events-v1';
+let events=JSON.parse(localStorage.getItem(LS_EVENTS)||'{}');
+
+const monthsEl=document.getElementById('months');
+const picker=document.getElementById('picker');
+const pickerSelect=document.getElementById('eventType');
+let pickerTargetKey=null;
+
+const EVENT_ICON={ deadline:'⏰', training:'💡', meeting:'👥', special:'⭐' };
+const toKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+function applyEventStyle(cell,type){
+cell.classList.remove('deadline','training','meeting','special');
+const icons=cell.querySelector('.evicons'); if(icons) icons.textContent='';
+if(type){ cell.classList.add(type); if(icons) icons.textContent=EVENT_ICON[type]||''; }
+}
+
+function buildMonth(y,m){
+const first=new Date(y,m,1); const start=first.getDay(); const days=new Date(y,m+1,0).getDate();
+const title=first.toLocaleString('en-US',{month:'long',year:'numeric'});
+
+const wrap=document.createElement('div'); wrap.className='month-card';
+const head=document.createElement('div'); head.className='month-title'; head.textContent=title;
+const grid=document.createElement('div'); grid.className='grid';
+
+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{ const e=document.createElement('div'); e.className='dow'; e.textContent=d; grid.appendChild(e); });
+for(let i=0;i<start;i++){ const e=document.createElement('div'); e.className='cell out'; grid.appendChild(e); }
+
+const todayKey=toKey(new Date());
+for(let d=1; d<=days; d++){
+const date=new Date(y,m,d); const key=toKey(date);
+const cell=document.createElement('div'); cell.className='cell';
+cell.innerHTML=`<span class="evicons"></span><span class="num">${d}</span>`;
+if(key===todayKey) cell.classList.add('today');
+applyEventStyle(cell, events[key]);
+cell.addEventListener('click', ev=>showPicker(ev.currentTarget,key));
+grid.appendChild(cell);
+}
+const total=start+days, trail=(7-(total%7))%7; for(let i=0;i<trail;i++){ const e=document.createElement('div'); e.className='cell out'; grid.appendChild(e); }
+wrap.append(head,grid); return wrap;
+}
+
+function renderCalendars(){
+monthsEl.innerHTML='';
+const now=new Date(); const y1=now.getFullYear(); const m1=now.getMonth();
+const y2=m1===11?y1+1:y1; const m2=(m1+1)%12;
+monthsEl.appendChild(buildMonth(y1,m1));
+monthsEl.appendChild(buildMonth(y2,m2));
+}
+
+/* تموضع Picker — ثابت داخل الشاشة حتى على iPhone */
+function showPicker(targetCell,key){
+pickerTargetKey=key;
+// قياسات العنصر والنوافذ
+const r=targetCell.getBoundingClientRect();
+const pw = Math.min(260, window.innerWidth - 16); // مطابق لـ max-width في CSS
+const ph = picker.offsetHeight || 190; // تقدير أولي قبل العرض
+
+// مكان مبدئي فوق الخلية
+let left = r.left;
+let top = r.top - ph - 10;
+
+// إن كان فوق الشاشة، حطه تحتها
+if (top < 8) top = r.bottom + 10;
+
+// قيود الحواف اليمنى/اليسرى
+left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+
+picker.style.left = left + 'px';
+picker.style.top = top + 'px';
+picker.style.display='block';
+
+pickerSelect.value=events[key]||'';
+}
+document.addEventListener('click',e=>{
+if(!picker.contains(e.target) && !e.target.classList.contains('cell')) picker.style.display='none';
+});
+pickerSelect.addEventListener('change',()=>{
+if(!pickerTargetKey) return;
+const type=pickerSelect.value||null;
+if(type) events[pickerTargetKey]=type; else delete events[pickerTargetKey];
+localStorage.setItem(LS_EVENTS, JSON.stringify(events));
+renderCalendars(); picker.style.display='none'; checkTodayReminder();
+});
+
+/* Date-specific tasks */
+const LS_DATE_TASKS='samref-date-tasks-v1'; // {"YYYY-MM-DD":[{id,text,prio,done}]}
+let dateTasks=JSON.parse(localStorage.getItem(LS_DATE_TASKS)||'{}');
+const dateTaskText=$('#dateTaskText');
+const dateTaskPriority=$('#dateTaskPriority');
+const addDateTaskBtn=$('#addDateTask');
+const todayList=$('#todayList'), tomorrowList=$('#tomorrowList');
+
+function saveDateTasks(){ localStorage.setItem(LS_DATE_TASKS, JSON.stringify(dateTasks)); }
+
+function addDateTask(){
+const txt=(dateTaskText.value||'').trim();
+if(!pickerTargetKey || !txt) return;
+const prio=dateTaskPriority.value; // red | yellow | green
+const arr=dateTasks[pickerTargetKey]||[];
+arr.unshift({id:uid(), text:txt, prio, done:false});
+dateTasks[pickerTargetKey]=arr;
+dateTaskText.value='';
+saveDateTasks();
+renderDailyPanels();
+picker.style.display='none';
+}
+addDateTaskBtn.addEventListener('click', addDateTask);
+
+const ORDER={red:0,yellow:1,green:2}; // sort priority
+
+function renderDailyPanels(){
+const today=new Date(); const todayKey=toKey(today);
+const tmwKey=toKey(new Date(today.getFullYear(), today.getMonth(), today.getDate()+1));
+drawDayList(todayKey, todayList);
+drawDayList(tmwKey, tomorrowList);
+}
+
+function drawDayList(key, container){
+container.innerHTML='';
+const arr=(dateTasks[key]||[]).slice()
+.sort((a,b)=> (ORDER[a.prio]-ORDER[b.prio]) || ((a.done?1:0)-(b.done?1:0))); // الأهم أولاً ثم غير المنجزة
+
+if(!arr.length){
+const p=document.createElement('div'); p.style.color='#6B7B85'; p.textContent='No tasks for this day.';
+container.appendChild(p); return;
+}
+arr.forEach(t=>{
+const row=document.createElement('div'); row.className='ditem '+t.prio+(t.done?' done':'');
+const chk=document.createElement('input'); chk.type='checkbox'; chk.className='dcheck'; chk.checked=!!t.done;
+chk.addEventListener('change',()=>{ t.done=!t.done; saveDateTasks(); renderDailyPanels(); });
+
+const text=document.createElement('div'); text.className='dtext'; text.textContent=t.text;
+
+const badge=document.createElement('span'); badge.className='badge '+t.prio;
+badge.textContent = t.prio==='red'?'Very important':(t.prio==='yellow'?'Important':'Optional');
+
+const del=document.createElement('button'); del.className='dtrash'; del.textContent='✕';
+del.addEventListener('click',()=>{
+dateTasks[key]=(dateTasks[key]||[]).filter(x=>x.id!==t.id);
+saveDateTasks(); renderDailyPanels();
+});
+
+row.append(chk,text,badge,del);
+container.appendChild(row);
+});
+}
+
+/* Reminders */
+function todayEventNames(){
+const today=toKey(new Date());
+return Object.entries(events).filter(([k,v])=>k===today && v).map(([,v])=>v);
+}
+function checkTodayReminder(){
+const toast=$('#toast'); const map={deadline:'Deadline',training:'Training',meeting:'Meeting',special:'Special day'};
+const names=todayEventNames().map(t=>map[t]).join(', ');
+if(names){
+toast.style.display='flex'; toast.textContent=`🔔 Today: ${names}`;
+if('Notification' in window){
+if(Notification.permission==='granted'){ new Notification('Today’s events',{body:names}); }
+else if(Notification.permission!=='denied'){ Notification.requestPermission().then(p=>{ if(p==='granted') new Notification('Today’s events',{body:names}); }); }
+}
+}else toast.style.display='none';
+}
+setInterval(checkTodayReminder, 60*60*1000);
+
+/* Init */
+setGreeting(); renderDates(); renderTasks(); renderCalendars(); checkTodayReminder();
+renderDailyPanels(); scheduleMidnightUpdate();
+
+/* (اختياري) كاشف العنصر المسبب للتمرير الأفقي — للتصحيح السريع
+[...document.body.querySelectorAll('*')].forEach(el=>{
+if (el.scrollWidth > document.documentElement.clientWidth + 1) {
+console.warn('Overflow →', el);
+el.style.outline = '1px solid red';
+}
+});
+*/
+})();
+</script>
+</body>
+</html>
